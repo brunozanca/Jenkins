@@ -1,0 +1,50 @@
+def secrets = [
+    [password: pass, var: 'SECRET']
+]
+
+pipeline {
+        agent none
+
+       
+        stages {
+        
+            stage('Transferindo arquivos para Jumpbox'){
+              steps {
+                build 'TransferWorkspace' 
+                }
+            }
+
+                  
+            }
+            }
+
+node {
+wrap([$class: 'MaskPasswordsBuildWrapper', varPasswordPairs: secrets]) {
+  def remote = [:]
+  remote.name = 'H-TK-CS-O2'
+    remote.host = 'IPJUMPB'
+    remote.user = username
+    remote.password = pass
+    remote.allowAnyHosts = true
+    
+    
+    stage('Preparando os arquivos Ansible') {
+
+     sshCommand remote: remote, command: "echo "+remote.password+" | sudo -S cp /home/"+username+"/jenkins/Ansible/all_hosts /etc/ansible/all_hosts"
+     sshCommand remote: remote, command: "echo "+remote.password+" | sudo -S cp /home/"+username+"/jenkins/Ansible/playbooks/* /etc/ansible/playbooks/"
+     
+
+  }
+stage('Adicionando Permissoes') {
+sshCommand remote: remote, command: "echo "+pass+" | sudo -S ansible-playbook -b -u "+username+" /etc/ansible/playbooks/CHANGE-Permissions.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+  
+
+
+  stage('Change to aplication to DB 01') {
+    sshCommand remote: remote, command: "ansible-playbook -b -u "+username+" /etc/ansible/playbooks/H-CHANGE-to-DB01.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+  }
+} 

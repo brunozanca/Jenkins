@@ -1,0 +1,52 @@
+def secrets = [
+    [password: pass, var: 'SECRET']
+]
+
+
+
+	pipeline {
+        agent none
+
+       
+        stages {
+        
+            stage('Realizando Backup'){
+              steps {
+                build 'H-TK-BACKUP' 
+                }
+            }
+
+                  
+            }
+            }
+
+
+node() {
+    wrap([$class: 'MaskPasswordsBuildWrapper', varPasswordPairs: secrets]) {
+        def remote = [:]
+  remote.name = 'H-TK-CS-O2'
+    remote.host = '172.21.21.83'
+    remote.user = username
+    remote.password = pass
+    remote.allowAnyHosts = true
+
+
+stage('Preparando os arquivos Ansible') {
+sshCommand remote: remote, command: "ansible-playbook -b -u "+username+" /etc/ansible/playbooks/WS-PREPAIR-Deploy-Vms.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+  
+  stage('Realizando Deploy VMs') {
+    sshCommand remote: remote, command: "ansible-playbook -b -u "+username+" /etc/ansible/playbooks/H-Deploy-VMs.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+  
+
+    stage('Get Sha1sum files') {
+    sshCommand remote: remote, command: "ansible-playbook -b -u "+username+" /etc/ansible/playbooks/GET-Deploy-Status.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+
+    }
+}
+

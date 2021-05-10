@@ -1,0 +1,75 @@
+def secrets = [
+    [password: pass, var: 'SECRET']
+]
+
+node() {
+    wrap([$class: 'MaskPasswordsBuildWrapper', varPasswordPairs: secrets]) {
+        def remote = [:]
+  remote.name = 'H-TK-CS-O2'
+    remote.host = 'IPJUMPB'
+    remote.user = username
+    remote.password = pass
+    remote.allowAnyHosts = true
+
+
+    stage('Limpando Workspace') {
+
+     sshCommand remote: remote, command: "echo "+remote.password+" | sudo -S rm -rf  /home/"+username+"/jenkins/"
+  }
+    }
+}
+
+	pipeline {
+        agent none
+
+       
+        stages {
+        
+            stage('Transferindo arquivos para Jumpbox'){
+              steps {
+                build 'TransferWorkspace' 
+                }
+            }
+
+                  
+            }
+            }
+
+
+
+node() {
+    wrap([$class: 'MaskPasswordsBuildWrapper', varPasswordPairs: secrets]) {
+        def remote = [:]
+  remote.name = 'H-TK-CS-O2'
+    remote.host = 'IPJUMPB'
+    remote.user = username
+    remote.password = pass
+    remote.allowAnyHosts = true
+
+    stage('Preparando os arquivos Ansible') {
+
+     sshCommand remote: remote, command: "echo "+remote.password+" | sudo -S cp /home/"+username+"/jenkins/Ansible/all_hosts /etc/ansible/all_hosts"
+     sshCommand remote: remote, command: "echo "+remote.password+" | sudo -S cp /home/"+username+"/jenkins/Ansible/playbooks/* /etc/ansible/playbooks/"
+     
+
+  }
+stage('Adicionando Permissoes') {
+sshCommand remote: remote, command: "echo "+pass+" | sudo -S ansible-playbook -b -u "+username+" /etc/ansible/playbooks/CHANGE-Permissions.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+  
+  
+  stage('Realizando Rollback nas VMs') {
+    sshCommand remote: remote, command: "ansible-playbook -b -u "+username+" /etc/ansible/playbooks/ROLLBACK-EARS.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+  
+
+    stage('Get Sha1sum files') {
+    sshCommand remote: remote, command: "ansible-playbook -b -u "+username+" /etc/ansible/playbooks/GET-Deploy-Status.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+
+    }
+}
+

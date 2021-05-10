@@ -1,0 +1,7 @@
+  stage('Checkout external proj') {
+        steps {
+     git branch: 'master',
+    credentialsId: 'JKNS',
+    url: 'ssh://gitlab.hst.br/Innovations/cd/tk-poc.git'
+        }
+    }

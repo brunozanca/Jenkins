@@ -1,0 +1,54 @@
+def secrets = [
+    [password: pass, var: 'SECRET']
+]
+
+pipeline {
+        agent none
+
+       
+        stages {
+        
+            stage('Transferindo arquivos para Jumpbox'){
+              steps {
+                build 'TransferWorkspace' 
+                }
+            }
+
+                  
+            }
+            }
+
+node {
+wrap([$class: 'MaskPasswordsBuildWrapper', varPasswordPairs: secrets]) {
+  def remote = [:]
+  remote.name = 'H-TK-CS-O2'
+    remote.host = 'IPHOST'
+    remote.user = username
+    remote.password = pass
+    remote.allowAnyHosts = true
+    
+
+    stage('Preparando os arquivos Ansible') {
+
+     sshCommand remote: remote, command: "echo "+pass+" | sudo -S cp /home/"+username+"/jenkins/Ansible/all_hosts /etc/ansible/all_hosts"
+     sshCommand remote: remote, command: "echo "+pass+" | sudo -S cp /home/"+username+"/jenkins/Ansible/playbooks/* /etc/ansible/playbooks/"
+     
+
+  }
+stage('Adicionando Permissoes') {
+sshCommand remote: remote, command: "echo "+pass+" | sudo -S ansible-playbook /etc/ansible/playbooks/CHANGE-Permissions.yml -i /etc/ansible/all_hosts --user="+username+"  \
+--extra-vars 'ansible_ssh_pass="+remote.password+"' \
+--extra-vars='ansible_sudo_pass="+remote.password+"'"
+
+   
+      
+ 
+  }
+  
+  stage('Subindo o wildfly em todas as VMS') {
+    sshCommand remote: remote, command: "ansible-playbook /etc/ansible/playbooks/START-Wildfly.yml -i /etc/ansible/all_hosts --user="+username+"  \
+--extra-vars 'ansible_ssh_pass="+remote.password+"' \
+--extra-vars='ansible_sudo_pass="+remote.password+"'"
+  }
+} 
+}

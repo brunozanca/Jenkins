@@ -1,0 +1,37 @@
+def secrets = [
+    [password: pass, var: 'SECRET']
+]
+
+
+
+
+
+node() {
+    wrap([$class: 'MaskPasswordsBuildWrapper', varPasswordPairs: secrets]) {
+        def remote = [:]
+  remote.name = 'P-JUMPBOX-01'
+    remote.host = 'IPJUMPB'
+    remote.user = username
+    remote.password = pass
+    remote.allowAnyHosts = true
+
+
+stage('Preparando os arquivos Ansible') {
+sshCommand remote: remote, command: "ansible-playbook -b -u "+username+" /etc/ansible/playbooks/P-WS-PREPAIR-Deploy-Vms.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+  
+  stage('Realizando Deploy VMs') {
+    sshCommand remote: remote, command: "ansible-playbook -b -u "+username+" /etc/ansible/playbooks/P-Deploy-VMs.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+  
+
+    stage('Get Sha1sum files') {
+    sshCommand remote: remote, command: "ansible-playbook -b -u "+username+" /etc/ansible/playbooks/GET-Deploy-Status.yml -i /etc/ansible/all_hosts -e 'ansible_ssh_pass="+remote.password+" ansible_sudo_pass="+remote.password+"'"
+
+  }
+
+    }
+}
+
